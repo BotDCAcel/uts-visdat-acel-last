@@ -1,21 +1,57 @@
-// Fungsi untuk mengambil data dari file JSON
-async function fetchData(url) {
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Gagal memuat data dari ${url}`);
-    }
-    return response.json();
+// --- Fungsi Helper untuk Format Angka ---
+
+/**
+ * Memformat angka dengan pemisah ribuan.
+ * (Fungsi formatCurrency dihapus karena tidak lagi digunakan)
+ * Contoh: 1500 -> "1.500"
+ * @param {number} value - Angka yang akan diformat
+ * @returns {string} String angka yang telah diformat
+ */
+function formatNumber(value) {
+    return new Intl.NumberFormat('id-ID').format(value);
 }
 
-// Fungsi utama untuk membuat dashboard
+// --- Fungsi Dashboard Utama ---
+
+/**
+ * Fungsi untuk mengambil data dari file JSON
+ * @param {string} url - Path ke file JSON
+ * @returns {Promise<Object>} Data JSON
+ */
+async function fetchData(url) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Gagal memuat data dari ${url} (Status: ${response.status})`);
+        }
+        return response.json();
+    } catch (error) {
+        console.error("Fetch error:", error);
+        // Hapus referensi ke elemen KPI yang sudah tidak ada
+        throw error; // Melempar error lagi agar createDashboard berhenti
+    }
+}
+
+/**
+ * (Fungsi updateKPIs dihapus karena elemen HTML-nya tidak ada)
+ */
+
+/**
+ * Fungsi utama untuk membuat semua chart dashboard
+ */
 async function createDashboard() {
     try {
-        // 1. Ambil semua data
-        const salesData = await fetchData('sales_over_time.json');
-        const categoriesData = await fetchData('top_categories.json');
-        const paymentData = await fetchData('payment_distribution.json');
+        // 1. Ambil semua data secara paralel
+        // Hapus 'kpi_data.json' dari Promise.all
+        const [salesData, categoriesData, paymentData] = await Promise.all([
+            fetchData('sales_over_time.json'),
+            fetchData('top_categories.json'),
+            fetchData('payment_distribution.json')
+        ]);
 
-        // --- 1. Line Chart: Pendapatan Bulanan ---
+        // 2. (Panggilan ke updateKPIs dihapus)
+
+        // --- 3. Line Chart: Pendapatan Bulanan ---
         const salesLabels = salesData.map(d => d.month);
         const salesValues = salesData.map(d => d.revenue);
 
@@ -26,26 +62,23 @@ async function createDashboard() {
                 datasets: [{
                     label: 'Pendapatan (Rp)',
                     data: salesValues,
-                    borderColor: 'rgb(255, 99, 132)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgb(22, 163, 74)',
+                    backgroundColor: 'rgba(22, 163, 74, 0.1)',
                     tension: 0.1,
                     fill: true
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false, // Penting untuk container responsif
                 scales: {
                     y: {
                         beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Pendapatan (Rp)'
-                        },
-                        // Menggunakan fungsi callback untuk memformat label sumbu Y
+                        title: { display: true, text: 'Pendapatan (Rp)' },
                         ticks: {
-                            callback: function(value, index, values) {
-                                // Contoh: 1000000 -> 1 Jt
-                                return 'Rp ' + (value / 1000000).toFixed(0) + ' Jt';
+                            callback: function(value) {
+                                // Format Y-axis (Rp 1 Jt, Rp 2 Jt)
+                                return 'Rp ' + (value / 1000000) + ' Jt';
                             }
                         }
                     }
@@ -67,9 +100,8 @@ async function createDashboard() {
             }
         });
 
-        // --- 2. Bar Chart: Kategori Teratas ---
+        // --- 4. Bar Chart: Kategori Teratas ---
         const categoryLabels = categoriesData.map(d => d.category);
-        // Menggunakan kolom 'revenue_mil' untuk nilai yang lebih mudah dibaca
         const categoryValues = categoriesData.map(d => d.revenue_mil); 
 
         new Chart(document.getElementById('topCategoriesChart'), {
@@ -79,36 +111,27 @@ async function createDashboard() {
                 datasets: [{
                     label: 'Revenue (Jutaan Rp)',
                     data: categoryValues,
-                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.7)', 
+                    borderColor: 'rgb(37, 99, 235)',
                     borderWidth: 1
                 }]
             },
             options: {
                 indexAxis: 'y', // Membuat Bar Chart Horizontal
                 responsive: true,
+                maintainAspectRatio: false, // Penting untuk container responsif
                 scales: {
                     x: {
                         beginAtZero: true,
-                        title: {
-                            display: true,
-                            text: 'Revenue (Jutaan Rp)'
-                        }
+                        title: { display: true, text: 'Revenue (Jutaan Rp)' }
                     }
                 },
                 plugins: {
-                    legend: {
-                        display: false
-                    },
+                    legend: { display: false },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                let label = context.dataset.label || '';
-                                if (label) {
-                                    label += ': ';
-                                }
-                                label += (context.raw).toLocaleString('id-ID') + ' Juta';
-                                return label;
+                                return ` Revenue: ${context.raw.toLocaleString('id-ID')} Juta Rp`;
                             }
                         }
                     }
@@ -116,19 +139,18 @@ async function createDashboard() {
             }
         });
 
-        // --- 3. Doughnut Chart: Distribusi Pembayaran ---
+        // --- 5. Doughnut Chart: Distribusi Pembayaran ---
         const paymentLabels = paymentData.map(d => d.payment_method);
         const paymentValues = paymentData.map(d => d.order_count);
         
-        // Fungsi untuk menghasilkan warna acak
-        const generateColors = (num) => {
-            const colors = [];
-            for (let i = 0; i < num; i++) {
-                // Warna pastel acak
-                colors.push(`hsl(${Math.random() * 360}, 70%, 75%)`);
-            }
-            return colors;
-        };
+        const paymentColors = [
+            '#ef4444', // red-500
+            '#f97316', // orange-500
+            '#eab308', // yellow-500
+            '#22c55e', // green-500
+            '#3b82f6', // blue-500
+            '#a855f7', // purple-500
+        ];
 
         new Chart(document.getElementById('paymentDistributionChart'), {
             type: 'doughnut',
@@ -137,15 +159,16 @@ async function createDashboard() {
                 datasets: [{
                     label: 'Jumlah Pesanan',
                     data: paymentValues,
-                    backgroundColor: generateColors(paymentValues.length),
-                    hoverOffset: 4
+                    backgroundColor: paymentColors,
+                    hoverOffset: 8
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false, // Penting untuk container responsif
                 plugins: {
                     legend: {
-                        position: 'top',
+                        position: 'bottom', // Legenda di bawah agar lebih rapi
                     },
                     tooltip: {
                         callbacks: {
@@ -153,7 +176,7 @@ async function createDashboard() {
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
                                 const currentValue = context.raw;
                                 const percentage = ((currentValue / total) * 100).toFixed(1);
-                                return `${context.label}: ${currentValue.toLocaleString('id-ID')} (${percentage}%)`;
+                                return ` ${context.label}: ${formatNumber(currentValue)} (${percentage}%)`;
                             }
                         }
                     }
@@ -163,8 +186,10 @@ async function createDashboard() {
 
     } catch (error) {
         console.error('Terjadi kesalahan saat membuat dashboard:', error);
-        document.querySelector('.container').innerHTML = '<h2>Gagal memuat data. Periksa konsol browser untuk detail.</h2>';
+        // Tampilkan pesan error di body jika gagal total
+        document.querySelector('.container').innerHTML = `<h2 class="text-center text-red-600 font-bold">Gagal memuat data dashboard. Pastikan file JSON (sales_over_time.json, dll.) tersedia dan coba lagi. Periksa konsol browser untuk detail.</h2>`;
     }
 }
 
-createDashboard();
+// Jalankan fungsi utama saat DOM siap
+document.addEventListener('DOMContentLoaded', createDashboard);
