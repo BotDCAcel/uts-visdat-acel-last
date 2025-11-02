@@ -1,0 +1,61 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f7f9;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+h1 {
+    text-align: center;
+    color: #0088cc; /* Warna khas Tokped/e-commerce */
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+h2 {
+    font-size: 1.2em;
+    text-align: center;
+    margin-bottom: 15px;
+    color: #555;
+}
+
+.dashboard-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.chart-container {
+    background-color: #f9f9f9;
+    padding: 20px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    flex: 1 1 calc(50% - 20px); /* Default: 2 kolom */
+    min-width: 300px; /* Lebar minimum chart */
+}
+
+.full-width {
+    flex: 1 1 100%; /* Line chart mengambil lebar penuh */
+}
+
+/* Responsif untuk layar kecil */
+@media (max-width: 768px) {
+    .chart-container {
+        flex: 1 1 100%; /* Semua chart menjadi 1 kolom */
+    }
+    .container {
+        margin: 10px;
+        padding: 10px;
+    }
+}
